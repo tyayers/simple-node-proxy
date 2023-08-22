@@ -1,60 +1,64 @@
+const { GoogleAuth } = require("google-auth-library");
+
 // importing the dependencies
-const tracer = require('@google-cloud/trace-agent').start({
-  projectId: 'bruno-1407a',
-  keyFilename: 'bruno-owner-key.json',
-});
 
-const monitoring = require('@google-cloud/monitoring');
+const monitoring = require("@google-cloud/monitoring");
 
-const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const axios = require('axios').default;
-const https = require('https');
+const express = require("express");
+//const bodyParser = require("body-parser");
+const cors = require("cors");
+const axios = require("axios").default;
+const https = require("https");
+var port = process.env.PORT;
+if (!port) port = "8080";
 
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
 dotenv.config();
 
 // defining the Express app
 const app = express();
+app.use(express.json());
 
 // using bodyParser to parse JSON bodies into JS objects
-app.use(bodyParser.json());
+// app.use(bodyParser.json());
 
 // enabling CORS for all requests
 app.use(cors());
 
-const agent = new https.Agent({  
-  rejectUnauthorized: false
+const agent = new https.Agent({
+  rejectUnauthorized: false,
 });
 
 // app.get('/', (req, res) => {
 //   res.send("Service is healthy.");
 // });
 
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.send("Service is healthy.");
 });
 
-app.get('/healthz', (req, res) => {
+app.get("/healthz", (req, res) => {
   res.send("Service is healthy.");
 });
 
-app.get('/*', (req, res) => {
-
+app.all("/*", (req, res) => {
   console.log(req.originalUrl);
   console.log(req.method);
-  console.log(process.env.target + req.originalUrl);
+  console.log(process.env.TARGET + req.originalUrl);
 
   var options = {
     method: req.method,
-    url: process.env.target + req.originalUrl,
+    url: process.env.TARGET + req.originalUrl,
     headers: req.headers,
     httpsAgent: agent,
-    responseType: 'stream'
+    responseType: "stream",
   };
 
-  var host = process.env.target;
+  if (req.method != "GET" && req.body) {
+    options["data"] = req.body;
+  }
+
+  var host = process.env.TARGET;
   if (host.startsWith("https://")) host = host.replace("https://", "");
   else if (host.startsWith("http://")) host = host.replace("http://", "");
 
@@ -62,24 +66,46 @@ app.get('/*', (req, res) => {
 
   if (req.data) options.data = req.data;
 
-  axios(options).then((response) => {
-    res.status(response.status).set(response.headers);
+  const targetAudience = process.env.TARGET;
+  const url = process.env.TARGET;
+  const auth = new GoogleAuth();
+  auth.getIdTokenClient(targetAudience).then((client) => {
+    client
+      .request(options)
+      .then((response) => {
+        res.status(response.status).set(response.headers);
 
-    if (response.data)
-      response.data.pipe(res);
-    else
-      res.end();
-  }).catch(function (error) {
-    console.error(error.message);
-    res.status(error.response.status).end();
-    // if (error.response)
-    //   res.status(error.response.status).set(error.response.headers).send(error.response.data);
-    // else
-    //   res.status(404).send("Not found");
+        if (response.data) response.data.pipe(res);
+        else res.end();
+      })
+      .catch(function (error) {
+        console.error(error.message);
+        res.status(error.response.status).end();
+        // if (error.response)
+        //   res.status(error.response.status).set(error.response.headers).send(error.response.data);
+        // else
+        //   res.status(404).send("Not found");
+      });
   });
+
+  // axios(options)
+  //   .then((response) => {
+  //     res.status(response.status).set(response.headers);
+
+  //     if (response.data) response.data.pipe(res);
+  //     else res.end();
+  //   })
+  //   .catch(function (error) {
+  //     console.error(error.message);
+  //     res.status(error.response.status).end();
+  //     // if (error.response)
+  //     //   res.status(error.response.status).set(error.response.headers).send(error.response.data);
+  //     // else
+  //     //   res.status(404).send("Not found");
+  //   });
 });
 
 // starting the server
-app.listen(process.env.PORT, () => {
-  console.log(`listening on port ${process.env.PORT}`);
+app.listen(port, () => {
+  console.log(`listening on port ${port}`);
 });
