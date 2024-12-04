@@ -13,6 +13,7 @@ var port = process.env.PORT;
 if (!port) port = "8080";
 
 const dotenv = require("dotenv");
+const { resolve6 } = require("dns");
 dotenv.config();
 
 // defining the Express app
@@ -98,7 +99,9 @@ app.all("/*", async (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
   res.set("Access-Control-Allow-Headers", "*");
 
-  res.status(response.status).send(responseText);
+  res.status(response.status);
+  res.send(responseText);
+  res.end();
 });
 
 // starting the server
