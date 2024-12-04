@@ -23,7 +23,7 @@ app.use(express.json());
 // app.use(bodyParser.json());
 
 // enabling CORS for all requests
-app.use(cors());
+// app.use(cors());
 
 const agent = new https.Agent({
   rejectUnauthorized: false,
@@ -41,7 +41,7 @@ app.get("/healthz", (req, res) => {
   res.send("Service is healthy.");
 });
 
-app.all("/*", (req, res) => {
+app.all("/*", async (req, res) => {
   console.log(req.originalUrl);
   console.log(req.method);
   console.log(process.env.TARGET + req.originalUrl);
@@ -53,6 +53,8 @@ app.all("/*", (req, res) => {
     httpsAgent: agent,
     responseType: "stream",
   };
+
+  if (options.url.endsWith("/")) options.url = options.url.slice(0, -1);
 
   if (req.method != "GET" && req.body) {
     options["data"] = req.body;
@@ -66,43 +68,37 @@ app.all("/*", (req, res) => {
 
   if (req.data) options.data = req.data;
 
-  const targetAudience = process.env.TARGET;
-  const url = process.env.TARGET;
-  const auth = new GoogleAuth();
-  auth.getIdTokenClient(targetAudience).then((client) => {
-    client
-      .request(options)
-      .then((response) => {
-        res.status(response.status).set(response.headers);
+  // GOOGLE CLOUD RUN CODE
+  // const targetAudience = process.env.TARGET;
+  // const url = process.env.TARGET;
+  // const auth = new GoogleAuth();
+  // auth.getIdTokenClient(targetAudience).then((client) => {
+  //   client
+  //     .request(options)
+  //     .then((response) => {
+  //       res.status(response.status).set(response.headers);
 
-        if (response.data) response.data.pipe(res);
-        else res.end();
-      })
-      .catch(function (error) {
-        console.error(error.message);
-        res.status(error.response.status).end();
-        // if (error.response)
-        //   res.status(error.response.status).set(error.response.headers).send(error.response.data);
-        // else
-        //   res.status(404).send("Not found");
-      });
-  });
+  //       if (response.data) response.data.pipe(res);
+  //       else res.end();
+  //     })
+  //     .catch(function (error) {
+  //       console.error(error.message);
+  //       res.status(error.response.status).end();
+  //       // if (error.response)
+  //       //   res.status(error.response.status).set(error.response.headers).send(error.response.data);
+  //       // else
+  //       //   res.status(404).send("Not found");
+  //     });
+  // });
 
-  // axios(options)
-  //   .then((response) => {
-  //     res.status(response.status).set(response.headers);
+  let response = await fetch(options.url, options);
+  let responseText = await response.text();
 
-  //     if (response.data) response.data.pipe(res);
-  //     else res.end();
-  //   })
-  //   .catch(function (error) {
-  //     console.error(error.message);
-  //     res.status(error.response.status).end();
-  //     // if (error.response)
-  //     //   res.status(error.response.status).set(error.response.headers).send(error.response.data);
-  //     // else
-  //     //   res.status(404).send("Not found");
-  //   });
+  res.set("Access-Control-Allow-Methods", "*");
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
+
+  res.status(response.status).send(responseText);
 });
 
 // starting the server

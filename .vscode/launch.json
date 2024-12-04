@@ -13,8 +13,8 @@
       ],
       "program": "${workspaceFolder}/src/index.js",
       "env": {
-        "PORT": "8081",
-        "TARGET": "http://localhost:8080",
+        "PORT": "8080",
+        "TARGET": "https://httpbin.org/anything",
         "GOOGLE_APPLICATION_CREDENTIALS": "svc-key.json"
       }
     }
